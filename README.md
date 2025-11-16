@@ -1,28 +1,35 @@
-# valery-backend (Cloud Run / Node 20)
+# Valery Backend
 
+Google Cloud Run 上で動作する Valery のバックエンドサービスです。  
+Vertex AI (Gemini) を使ったチャット API と、ヘルスチェック用エンドポイントを提供します。
 
-## 0. 前提
-- Windows (PowerShell)
-- Google Cloud SDK (gcloud) インストール済み
-- プロジェクト: avatar-chat-test-001（例）
-- リージョン: asia-northeast1（東京）
+---
 
+## 📌 概要
 
-## 1. 初期セットアップ
-```powershell
-# 任意の場所で
-PS> mkdir valery-backend; cd valery-backend
+- 言語: **Node.js + Express**
+- デプロイ先: **Cloud Run**
+- GCP プロジェクト: `avatar-chat-test-001`
+- リージョン: `asia-northeast1`
+- 主な機能:
+  - `/chat` : Gemini 2.5 Flash によるチャット API
+  - `/` : 動作確認用レスポンス
+  - `/healthz` : （現状は未使用。生存確認は `/` を使用）
+  - `/rag-chat` : RAG チャット（※現在は実験中・未完成）
 
+---
 
-# 上記テンプレのファイルを配置
+## 📌 必要な環境変数
 
+Cloud Run / ローカル（Cloud Shell）共通で利用。
 
-# 依存インストール
-PS valery-backend> npm install
+| 変数名 | 内容 | 例 |
+|--------|------|------|
+| `VERTEX_LOCATION` | Vertex AI のリージョン | `asia-northeast1` |
+| `CHAT_MODEL` | チャット用モデル | `gemini-2.5-flash` |
+| `EMB_MODEL` | 埋め込みモデル（RAG用） | `text-embedding-004` |
 
+Cloud Run のデプロイ時は、以下のように指定します。
 
-# ローカル起動
-PS valery-backend> $env:PORT=8080; npm start
-# 確認
-PS> Invoke-WebRequest http://localhost:8080/ | Select-Object -ExpandProperty Content
-PS> Invoke-WebRequest http://localhost:8080/healthz | Select -Expand Content
+```bash
+--set-env-vars="VERTEX_LOCATION=asia-northeast1,CHAT_MODEL=gemini-2.5-flash,EMB_MODEL=text-embedding-004"

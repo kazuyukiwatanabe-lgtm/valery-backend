@@ -22,7 +22,7 @@ const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'avatar-chat-test-001';
 const VERTEX_LOCATION = process.env.VERTEX_LOCATION || 'asia-northeast1';
 const CHAT_MODEL = process.env.CHAT_MODEL || 'gemini-2.5-flash';
 
-// Embedding 用（リージョンは us-central1 を推奨）
+// Embedding 用（text-embedding-004 は us-central1 推奨）
 const EMB_LOCATION = process.env.EMB_LOCATION || 'us-central1';
 const EMB_MODEL = process.env.EMB_MODEL || 'text-embedding-004';
 
@@ -76,10 +76,12 @@ async function initVertex() {
       model: CHAT_MODEL,
     });
 
-    console.log('Vertex AI (chat) initialized:', {
+    console.log('Vertex AI initialized:', {
       project: PROJECT_ID,
-      location: VERTEX_LOCATION,
-      model: CHAT_MODEL,
+      chat_location: VERTEX_LOCATION,
+      chat_model: CHAT_MODEL,
+      emb_location: EMB_LOCATION,
+      emb_model: EMB_MODEL,
     });
   } catch (err) {
     console.error('Vertex AI init error:', err);

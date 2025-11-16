@@ -1,60 +1,52 @@
 /**
  * update-embedding.js
- * 
+ *
  * Firestore の rag_documents/{docId} の content を読み出し、
  * Vertex Embedding API (text-embedding-004) で埋め込みを再生成し、
  * Firestore の embedding フィールドを上書きする。
  */
 
+'use strict';
+
 const { Firestore } = require('@google-cloud/firestore');
-const { GoogleAuth } = require('google-auth-library');
+const { VertexAI } = require('@google-cloud/vertexai');
 
 // ==== 設定 ====
+// プロジェクトID
 const project = process.env.GOOGLE_CLOUD_PROJECT || 'avatar-chat-test-001';
-const location = process.env.VERTEX_LOCATION || 'asia-northeast1';
+
+// text-embedding-004 は us-central1 推奨
+const embLocation = process.env.EMB_LOCATION || 'us-central1';
 const embModelName = process.env.EMB_MODEL || 'text-embedding-004';
 
 // ==== Firestore ====
 const firestore = new Firestore({ projectId: project });
 
-// ==== Vertex Embedding Endpoint ====
-const vertexEmbEndpoint =
-  `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}` +
-  `/publishers/google/models/${embModelName}:predict`;
+// ==== Vertex Embedding Model (text-embedding-004) ====
+const vertexAI = new VertexAI({
+  project,
+  location: embLocation,
+});
 
-// ==== 認証 ====
-const auth = new GoogleAuth({
-  scopes: 'https://www.googleapis.com/auth/cloud-platform',
+const embModel = vertexAI.getGenerativeModel({
+  model: embModelName,
 });
 
 // ==== Embedding 生成関数 ====
 async function embedText(text) {
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
-  const res = await fetch(vertexEmbEndpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token.token || token}`,
-      'Content-Type': 'application/json',
+  const result = await embModel.embedContent({
+    content: {
+      role: 'user',
+      parts: [{ text }],
     },
-    body: JSON.stringify({
-      instances: [
-        {
-          content: text,
-          task_type: 'RETRIEVAL_DOCUMENT',
-        },
-      ],
-    }),
+    taskType: 'RETRIEVAL_DOCUMENT',
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Embedding API error: ${res.status} - ${body}`);
+  const embedding = result.embedding && result.embedding.values;
+  if (!embedding || !embedding.length) {
+    throw new Error('No embedding returned from embedding model');
   }
 
-  const data = await res.json();
-  const embedding = data.predictions[0].embeddings.values;
   return embedding;
 }
 
@@ -99,7 +91,7 @@ async function main() {
   console.log(`✅ Firestore update 完了: rag_documents/${docId}`);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('❌ Error:', err);
   process.exit(1);
 });
