@@ -1,35 +1,75 @@
-# Valery Backend
+# Valery Backend (Vertex AI + RAG Chat API)
 
-Google Cloud Run 上で動作する Valery のバックエンドサービスです。  
-Vertex AI (Gemini) を使ったチャット API と、ヘルスチェック用エンドポイントを提供します。
+Valery のバックエンド API です。  
+Google Cloud（Vertex AI + Firestore + Cloud Run）を利用し、  
+**RAG（Retrieval-Augmented Generation）付きの /chat API** を提供します。
 
----
+主な機能：
 
-## 📌 概要
-
-- 言語: **Node.js + Express**
-- デプロイ先: **Cloud Run**
-- GCP プロジェクト: `avatar-chat-test-001`
-- リージョン: `asia-northeast1`
-- 主な機能:
-  - `/chat` : Gemini 2.5 Flash によるチャット API
-  - `/` : 動作確認用レスポンス
-  - `/healthz` : （現状は未使用。生存確認は `/` を使用）
-  - `/rag-chat` : RAG チャット（※現在は実験中・未完成）
+- Gemini (Vertex AI) を利用したチャット生成
+- text-embedding-004 によるベクトル埋め込み
+- Firestore による RAG（ドキュメント検索）
+- /rag/ingest による文章チャンク＋埋め込み保存
+- /chat による RAG 付き応答生成
+- Cloud Run デプロイ対応（healthz あり）
 
 ---
 
-## 📌 必要な環境変数
+## 🚀 API 一覧
 
-Cloud Run / ローカル（Cloud Shell）共通で利用。
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET `/` | 動作確認（環境変数表示） |
+| GET `/healthz` | Cloud Run 用ヘルスチェック |
+| POST `/rag/ingest` | RAG 用ドキュメント投入（チャンク化＋埋め込み＋Firestore 保存） |
+| POST `/chat` | RAG + Gemini 応答 |
 
-| 変数名 | 内容 | 例 |
-|--------|------|------|
-| `VERTEX_LOCATION` | Vertex AI のリージョン | `asia-northeast1` |
-| `CHAT_MODEL` | チャット用モデル | `gemini-2.5-flash` |
-| `EMB_MODEL` | 埋め込みモデル（RAG用） | `text-embedding-004` |
+---
 
-Cloud Run のデプロイ時は、以下のように指定します。
+## 📦 セットアップ
+
+### 必要環境
+
+- Node.js 18+
+- Google Cloud Project  
+  - Vertex AI API 有効化  
+  - Firestore（Native mode）
+  - Cloud Run  
+  - サービスアカウントに以下権限  
+    - Vertex AI User  
+    - Firestore User  
+    - Cloud Run Invoker（※公開する場合は allUsers も可）
+
+---
+
+## ⚙️ 環境変数（Cloud Run 用）
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|--------------|------|
+| `PORT` | 8080 | Express 起動ポート |
+| `GOOGLE_CLOUD_PROJECT` | avatar-chat-test-001 | GCP プロジェクトID |
+| `VERTEX_LOCATION` | asia-northeast1 | Gemini の実行リージョン |
+| `CHAT_MODEL` | gemini-2.5-flash | チャットモデル |
+| `EMB_LOCATION` | us-central1 | text-embedding-004 のリージョン |
+| `EMB_MODEL` | text-embedding-004 | 埋め込みモデル |
+| `RAG_COLLECTION` | valery_docs | Firestore のコレクション名 |
+
+※ とくに text-embedding-004 は **us-central1 推奨**。
+
+---
+
+## 📥 ドキュメント投入（/rag/ingest）
+
+テキストを約 800 文字でチャンクに分割し、  
+text-embedding-004 で埋め込みを生成し Firestore に保存します。
+
+### 例：curl
 
 ```bash
---set-env-vars="VERTEX_LOCATION=asia-northeast1,CHAT_MODEL=gemini-2.5-flash,EMB_MODEL=text-embedding-004"
+curl -X POST "$SERVICE_URL/rag/ingest" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Valery 会社概要",
+    "url": "https://valery-japan.com/company",
+    "text": "ここに長文テキスト……"
+  }'
